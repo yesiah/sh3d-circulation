@@ -34,13 +34,20 @@ public class HotspotGenerator {
                     float px = p1.x + fraction * (p2.x - p1.x);
                     float py = p1.y + fraction * (p2.y - p1.y);
 
-                    // Snap to grid
+                    // Snap to grid and apply human-width brush (30cm radius ~ 6 grid cells)
                     int gx = Math.round(px / GRID_SIZE);
                     int gy = Math.round(py / GRID_SIZE);
-                    String key = gx + "," + gy;
+                    int radius = 6;
                     
-                    heatMap.putIfAbsent(key, new HashSet<>());
-                    heatMap.get(key).add(i); // Add this scenario index to the grid cell
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dy = -radius; dy <= radius; dy++) {
+                            if (dx * dx + dy * dy <= radius * radius) {
+                                String key = (gx + dx) + "," + (gy + dy);
+                                heatMap.putIfAbsent(key, new HashSet<>());
+                                heatMap.get(key).add(i); // Add this scenario index to the grid cell
+                            }
+                        }
+                    }
                 }
             }
         }
