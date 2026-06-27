@@ -14,8 +14,8 @@ public class CirculationDialog extends JDialog {
     private HomeController homeController;
     private List<CirculationScenario> scenarios;
 
-    private JList<CirculationScenario> scenarioList;
-    private DefaultListModel<CirculationScenario> scenarioListModel;
+    private JTable scenarioTable;
+    private javax.swing.table.AbstractTableModel scenarioTableModel;
     private JTextArea waypointsArea;
     private JTextArea debugArea;
     private boolean isAddingCustomWaypoint = false;
@@ -43,7 +43,7 @@ public class CirculationDialog extends JDialog {
             @Override
             public void mousePressed(java.awt.event.MouseEvent me) {
                 if (isAddingCustomWaypoint && javax.swing.SwingUtilities.isLeftMouseButton(me)) {
-                    int idx = scenarioList.getSelectedIndex();
+                    int idx = scenarioTable.getSelectedRow();
                     if (idx >= 0) {
                         try {
                             com.eteks.sweethome3d.viewcontroller.PlanView planView = homeController.getPlanController().getView();
@@ -102,61 +102,45 @@ public class CirculationDialog extends JDialog {
         JPanel leftPanel = new JPanel(new BorderLayout(5, 5));
         leftPanel.setBorder(BorderFactory.createTitledBorder("Scenarios"));
         
-        scenarioListModel = new DefaultListModel<>();
-        for (CirculationScenario s : scenarios) {
-            scenarioListModel.addElement(s);
-        }
-        scenarioList = new JList<>(scenarioListModel);
-        scenarioList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        
-        scenarioList.setCellRenderer(new javax.swing.ListCellRenderer<CirculationScenario>() {
-            @Override
-            public java.awt.Component getListCellRendererComponent(JList<? extends CirculationScenario> list, CirculationScenario value, int index, boolean isSelected, boolean cellHasFocus) {
-                JCheckBox cb = new JCheckBox(value.getName(), value.isSelected());
-                cb.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
-                cb.setForeground(isSelected ? list.getSelectionForeground() : list.getForeground());
-                cb.setFont(list.getFont());
-                cb.setFocusPainted(false);
-                cb.setBorderPainted(true);
-                cb.setBorder(isSelected ? javax.swing.UIManager.getBorder("List.focusCellHighlightBorder") : javax.swing.BorderFactory.createEmptyBorder(1, 1, 1, 1));
-                return cb;
+        scenarioTableModel = new javax.swing.table.AbstractTableModel() {
+            @Override public int getRowCount() { return scenarios.size(); }
+            @Override public int getColumnCount() { return 2; }
+            @Override public String getColumnName(int col) { return col == 0 ? "Show" : "Scenario Name"; }
+            @Override public Class<?> getColumnClass(int col) { return col == 0 ? Boolean.class : String.class; }
+            @Override public boolean isCellEditable(int row, int col) { return true; }
+            @Override public Object getValueAt(int row, int col) {
+                CirculationScenario s = scenarios.get(row);
+                return col == 0 ? s.isSelected() : s.getName();
             }
-        });
-        
-        scenarioList.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mousePressed(java.awt.event.MouseEvent e) {
-                int index = scenarioList.locationToIndex(e.getPoint());
-                if (index != -1) {
-                    CirculationScenario s = scenarioListModel.getElementAt(index);
-                    s.setSelected(!s.isSelected());
-                    scenarioList.repaint(scenarioList.getCellBounds(index, index));
-                    save();
-                }
+            @Override public void setValueAt(Object value, int row, int col) {
+                CirculationScenario s = scenarios.get(row);
+                if (col == 0) s.setSelected((Boolean)value);
+                else s.setName((String)value);
+                save();
             }
-        });
-
-        scenarioList.addListSelectionListener(e -> updateWaypointsArea());
-        leftPanel.add(new JScrollPane(scenarioList), BorderLayout.CENTER);
+        };
+        scenarioTable = new JTable(scenarioTableModel);
+        scenarioTable.getColumnModel().getColumn(0).setMaxWidth(40);
+        scenarioTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        scenarioTable.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
+        scenarioTable.getSelectionModel().addListSelectionListener(e -> updateWaypointsArea());
+        leftPanel.add(new JScrollPane(scenarioTable), BorderLayout.CENTER);
 
         JPanel scenarioBtns = new JPanel(new GridLayout(1, 2, 5, 5));
         JButton btnAddScen = new JButton("Add");
         btnAddScen.addActionListener(e -> {
-            String name = JOptionPane.showInputDialog(this, "Scenario Name:");
-            if (name != null && !name.trim().isEmpty()) {
-                CirculationScenario s = new CirculationScenario(name);
-                scenarios.add(s);
-                scenarioListModel.addElement(s);
-                scenarioList.setSelectedIndex(scenarios.size() - 1);
-                save();
-            }
+            CirculationScenario s = new CirculationScenario("New Scenario");
+            scenarios.add(s);
+            scenarioTableModel.fireTableRowsInserted(scenarios.size() - 1, scenarios.size() - 1);
+            scenarioTable.setRowSelectionInterval(scenarios.size() - 1, scenarios.size() - 1);
+            save();
         });
         JButton btnDelScen = new JButton("Remove");
         btnDelScen.addActionListener(e -> {
-            int idx = scenarioList.getSelectedIndex();
+            int idx = scenarioTable.getSelectedRow();
             if (idx >= 0) {
                 scenarios.remove(idx);
-                scenarioListModel.remove(idx);
+                scenarioTableModel.fireTableRowsDeleted(idx, idx);
                 save();
             }
         });
@@ -175,7 +159,7 @@ public class CirculationDialog extends JDialog {
         JPanel wpBtns = new JPanel(new GridLayout(3, 1, 5, 5));
         JButton btnAddWp = new JButton("Add Selected Furniture");
         btnAddWp.addActionListener(e -> {
-            int idx = scenarioList.getSelectedIndex();
+            int idx = scenarioTable.getSelectedRow();
             if (idx < 0) {
                 logMessage("Select a scenario first.");
                 return;
@@ -193,7 +177,7 @@ public class CirculationDialog extends JDialog {
         
         JButton btnAddCustomWp = new JButton("Add Custom Point (Click Plan)");
         btnAddCustomWp.addActionListener(e -> {
-            int idx = scenarioList.getSelectedIndex();
+            int idx = scenarioTable.getSelectedRow();
             if (idx < 0) {
                 logMessage("Select a scenario first.");
                 return;
@@ -210,7 +194,7 @@ public class CirculationDialog extends JDialog {
         
         JButton btnClearWp = new JButton("Clear Waypoints");
         btnClearWp.addActionListener(e -> {
-            int idx = scenarioList.getSelectedIndex();
+            int idx = scenarioTable.getSelectedRow();
             if (idx >= 0) {
                 scenarios.get(idx).getWaypoints().clear();
                 updateWaypointsArea();
@@ -259,13 +243,13 @@ public class CirculationDialog extends JDialog {
         add(bottomPanel, BorderLayout.SOUTH);
 
         if (!scenarios.isEmpty()) {
-            scenarioList.setSelectedIndex(0);
+            if(scenarioTable.getRowCount()>0) scenarioTable.setRowSelectionInterval(0, 0);
         }
     }
 
     private void updateWaypointsArea() {
         waypointsArea.setText("");
-        int idx = scenarioList.getSelectedIndex();
+        int idx = scenarioTable.getSelectedRow();
         if (idx >= 0) {
             CirculationScenario s = scenarios.get(idx);
             for (Waypoint wp : s.getWaypoints()) {
