@@ -9,7 +9,7 @@ import java.awt.geom.Point2D;
 import java.util.*;
 
 public class Pathfinder {
-    private static final float GRID_SIZE = 5f; // 5 cm grid cells to prevent jumping over walls
+    private static final float GRID_SIZE = 20f; // 20 cm grid cells to optimize speed while preserving quality
     private static final float AGENT_RADIUS = 5f; // 5 cm radius to allow walking close to walls
 
     public static List<Point2D.Float> findPath(Home home, Point2D.Float start, Point2D.Float end, java.util.function.Consumer<String> logger) {
