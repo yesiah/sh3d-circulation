@@ -66,17 +66,29 @@ public class Pathfinder {
 
             current.closed = true;
 
-            for (int[] d : dirs) {
-                Point neighborP = new Point(current.p.x + d[0], current.p.y + d[1]);
-                
-                // Check if neighbor is obstacle
+            Point2D.Float currentWorldP = fromGrid(current.p);
+            for (int[] dir : dirs) {
+                int nx = current.p.x + dir[0];
+                int ny = current.p.y + dir[1];
+                Point neighborP = new Point(nx, ny);
                 Point2D.Float worldP = fromGrid(neighborP);
-                // Simple collision: check if a box of AGENT_RADIUS intersects
+
                 if (obstacles.intersects(worldP.x - AGENT_RADIUS, worldP.y - AGENT_RADIUS, AGENT_RADIUS*2, AGENT_RADIUS*2)) {
                     continue;
                 }
 
-                float tentativeG = current.gScore + (float)Math.hypot(d[0], d[1]) * GRID_SIZE;
+                float dx = worldP.x - currentWorldP.x;
+                float dy = worldP.y - currentWorldP.y;
+                float stepCost = (float) Math.hypot(dx, dy);
+
+                // Add soft penalties to stay away from walls (ergonomic path)
+                if (obstacles.intersects(worldP.x - 15, worldP.y - 15, 30, 30)) {
+                    stepCost *= 3.0f; // high penalty within 15cm
+                } else if (obstacles.intersects(worldP.x - 30, worldP.y - 30, 60, 60)) {
+                    stepCost *= 1.5f; // mild penalty within 30cm
+                }
+
+                float tentativeG = current.gScore + stepCost;
 
                 Node neighbor = allNodes.get(neighborP);
                 if (neighbor == null) {
