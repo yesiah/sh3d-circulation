@@ -30,7 +30,7 @@ public class CirculationDialog extends JDialog {
 
     private void initUI() {
         setLayout(new BorderLayout(10, 10));
-        setSize(500, 400);
+        setSize(750, 800);
         setLocationRelativeTo(null);
 
         // Scenarios List Panel
