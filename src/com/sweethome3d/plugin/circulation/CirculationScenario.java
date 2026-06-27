@@ -23,7 +23,6 @@ public class CirculationScenario {
     private static int colorIndex = 0;
     private int autoAssignColor() {
         int[] palette = {
-            0xFFFF0000, // Red
             0xFF0000FF, // Blue
             0xFF00FF00, // Green
             0xFFFF00FF, // Magenta

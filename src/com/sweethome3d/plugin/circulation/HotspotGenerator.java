@@ -59,13 +59,13 @@ public class HotspotGenerator {
                 float cx = gx * GRID_SIZE;
                 float cy = gy * GRID_SIZE;
                 
-                // Color calculation: yellow -> orange -> red based on overlap
+                // Color calculation: purely red, vary alpha based on overlap intensity
                 float intensity = (float) (overlap - 1) / Math.max(1, maxOverlap - 1);
                 
                 int r = 255;
-                int g = (int) (255 * (1.0f - intensity));
+                int g = 0;
                 int b = 0;
-                int a = 180; // Semi-transparent
+                int a = 100 + (int)(155 * intensity); // Alpha scales from 100 to 255 based on intensity
                 
                 int argb = (a << 24) | (r << 16) | (g << 8) | b;
                 
