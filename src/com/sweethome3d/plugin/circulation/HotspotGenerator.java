@@ -73,8 +73,8 @@ public class HotspotGenerator {
                 // Transition from Light Red/Pink (g=200, b=200) to Solid Red (g=0, b=0)
                 int g = (int) (200 * (1.0f - intensity));
                 int b = (int) (200 * (1.0f - intensity));
-                // Transition from somewhat transparent (a=150) to fully opaque (a=255)
-                int a = 150 + (int)(105 * intensity);
+                // Transition from somewhat transparent (a=60) to medium opaque (a=150)
+                int a = 60 + (int)(90 * intensity);
                 
                 int argb = (a << 24) | (r << 16) | (g << 8) | b;
                 

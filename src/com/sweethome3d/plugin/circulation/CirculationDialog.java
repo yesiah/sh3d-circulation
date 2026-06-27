@@ -19,6 +19,7 @@ public class CirculationDialog extends JDialog {
     private JTextArea waypointsArea;
     private JTextArea debugArea;
     private boolean isAddingCustomWaypoint = false;
+    private boolean showHotspot = false;
 
     public void logMessage(String msg) {
         if (debugArea != null) {
@@ -241,6 +242,20 @@ public class CirculationDialog extends JDialog {
             visualizeSelectedScenarios();
         });
         bottomPanel.add(btnCompute);
+        
+        JButton btnHotspot = new JButton("Show Hotspots");
+        btnHotspot.addActionListener(e -> {
+            showHotspot = !showHotspot;
+            if (showHotspot) {
+                btnHotspot.setText("Hide Hotspots");
+                visualizeSelectedScenarios();
+            } else {
+                btnHotspot.setText("Show Hotspots");
+                clearHotspots();
+            }
+        });
+        bottomPanel.add(btnHotspot);
+        
         add(bottomPanel, BorderLayout.SOUTH);
 
         if (!scenarios.isEmpty()) {
@@ -275,6 +290,21 @@ public class CirculationDialog extends JDialog {
 
     private void save() {
         ScenarioManager.saveScenarios(home, scenarios);
+    }
+
+    private void clearHotspots() {
+        List<Polyline> toRemove = new ArrayList<>();
+        for (Polyline p : home.getPolylines()) {
+            if (p.getId() != null && p.getId().startsWith("hotspot_")) {
+                toRemove.add(p);
+            }
+        }
+        for (Polyline p : toRemove) {
+            home.deletePolyline(p);
+        }
+        if (debugArea != null) {
+            logMessage("Hotspots cleared.");
+        }
     }
 
     private void visualizeSelectedScenarios() {
@@ -376,8 +406,8 @@ public class CirculationDialog extends JDialog {
             }
         }
 
-        // Generate Hotspots
-        if (!allComputedPaths.isEmpty()) {
+        // Generate Hotspots if enabled
+        if (showHotspot && !allComputedPaths.isEmpty()) {
             logMessage("Generating hotspots...");
             HotspotGenerator.generateHotspots(home, allComputedPaths);
             logMessage("Hotspots generated.");
