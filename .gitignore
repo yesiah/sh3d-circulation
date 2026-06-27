@@ -1,0 +1,4 @@
+lib/
+build/
+*.class
+*.sh3p
