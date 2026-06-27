@@ -20,6 +20,15 @@ public class CirculationDialog extends JDialog {
     private JTextArea debugArea;
     private boolean isAddingCustomWaypoint = false;
 
+    public void logMessage(String msg) {
+        if (debugArea != null) {
+            SwingUtilities.invokeLater(() -> {
+                debugArea.append(msg + "\n");
+                debugArea.setCaretPosition(debugArea.getDocument().getLength());
+            });
+        }
+    }
+
     private void initCustomWaypointListener(JComponent planComp) {
         // Scrub any old listeners left over from plugin reloads
         for (java.awt.event.MouseListener ml : planComp.getMouseListeners()) {
@@ -139,7 +148,7 @@ public class CirculationDialog extends JDialog {
         btnAddWp.addActionListener(e -> {
             int idx = scenarioList.getSelectedIndex();
             if (idx < 0) {
-                JOptionPane.showMessageDialog(this, "Select a scenario first.");
+                logMessage("Select a scenario first.");
                 return;
             }
             List<Selectable> selection = home.getSelectedItems();
@@ -149,7 +158,7 @@ public class CirculationDialog extends JDialog {
                 updateWaypointsArea();
                 save();
             } else {
-                JOptionPane.showMessageDialog(this, "Please select exactly one piece of furniture in the plan.");
+                logMessage("Please select exactly one piece of furniture in the plan.");
             }
         });
         
@@ -157,7 +166,7 @@ public class CirculationDialog extends JDialog {
         btnAddCustomWp.addActionListener(e -> {
             int idx = scenarioList.getSelectedIndex();
             if (idx < 0) {
-                JOptionPane.showMessageDialog(this, "Select a scenario first.");
+                logMessage("Select a scenario first.");
                 return;
             }
             
@@ -205,7 +214,7 @@ public class CirculationDialog extends JDialog {
             if (idx >= 0) {
                 visualizeScenario(scenarios.get(idx));
             } else {
-                JOptionPane.showMessageDialog(this, "Select a scenario to visualize.");
+                logMessage("Select a scenario to visualize.");
             }
         });
         bottomPanel.add(btnVisualize);
@@ -299,25 +308,29 @@ public class CirculationDialog extends JDialog {
             }
         }
 
-        if (fullPath.size() > 1) {
+        boolean isValidPath = fullPath.size() > 1;
+        Polyline polyline = null;
+        if (isValidPath) {
             float[][] points = new float[fullPath.size()][2];
             for (int i = 0; i < fullPath.size(); i++) {
                 points[i][0] = fullPath.get(i).x;
                 points[i][1] = fullPath.get(i).y;
             }
 
-            Polyline polyline = new Polyline("circ_" + scenario.getName(), points, 5f, 
+            polyline = new Polyline("circ_" + scenario.getName(), points, 5f, 
                     Polyline.CapStyle.ROUND, Polyline.JoinStyle.ROUND, 
                     Polyline.DashStyle.DASH, 0f, Polyline.ArrowStyle.NONE, Polyline.ArrowStyle.DELTA, 
                     false, scenario.getColor());
             
             polyline.setVisibleIn3D(true);
             polyline.setElevation(100f);
-            
+        }
+
+        if (isValidPath) {
             home.addPolyline(polyline);
-            JOptionPane.showMessageDialog(this, "Path generated successfully! Length: " + polyline.getLength() + " cm");
+            logMessage("Path generated successfully! Length: " + polyline.getLength() + " cm");
         } else {
-            JOptionPane.showMessageDialog(this, "Not enough valid waypoints to generate path.");
+            logMessage("Not enough valid waypoints to generate path.");
         }
     }
 
