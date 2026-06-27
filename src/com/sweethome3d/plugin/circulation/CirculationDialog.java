@@ -114,8 +114,13 @@ public class CirculationDialog extends JDialog {
             }
             @Override public void setValueAt(Object value, int row, int col) {
                 CirculationScenario s = scenarios.get(row);
-                if (col == 0) s.setSelected((Boolean)value);
-                else s.setName((String)value);
+                if (col == 0) {
+                    s.setSelected((Boolean)value);
+                    visualizeSelectedScenarios();
+                }
+                else {
+                    s.setName((String)value);
+                }
                 save();
             }
         };
