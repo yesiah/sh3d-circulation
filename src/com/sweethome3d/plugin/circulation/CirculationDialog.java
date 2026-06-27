@@ -14,8 +14,8 @@ public class CirculationDialog extends JDialog {
     private HomeController homeController;
     private List<CirculationScenario> scenarios;
 
-    private JList<String> scenarioList;
-    private DefaultListModel<String> scenarioListModel;
+    private JList<CirculationScenario> scenarioList;
+    private DefaultListModel<CirculationScenario> scenarioListModel;
     private JTextArea waypointsArea;
     private JTextArea debugArea;
     private boolean isAddingCustomWaypoint = false;
@@ -103,10 +103,38 @@ public class CirculationDialog extends JDialog {
         
         scenarioListModel = new DefaultListModel<>();
         for (CirculationScenario s : scenarios) {
-            scenarioListModel.addElement(s.getName());
+            scenarioListModel.addElement(s);
         }
         scenarioList = new JList<>(scenarioListModel);
         scenarioList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        scenarioList.setCellRenderer(new javax.swing.ListCellRenderer<CirculationScenario>() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<? extends CirculationScenario> list, CirculationScenario value, int index, boolean isSelected, boolean cellHasFocus) {
+                JCheckBox cb = new JCheckBox(value.getName(), value.isSelected());
+                cb.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
+                cb.setForeground(isSelected ? list.getSelectionForeground() : list.getForeground());
+                cb.setFont(list.getFont());
+                cb.setFocusPainted(false);
+                cb.setBorderPainted(true);
+                cb.setBorder(isSelected ? javax.swing.UIManager.getBorder("List.focusCellHighlightBorder") : javax.swing.BorderFactory.createEmptyBorder(1, 1, 1, 1));
+                return cb;
+            }
+        });
+        
+        scenarioList.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                int index = scenarioList.locationToIndex(e.getPoint());
+                if (index != -1) {
+                    CirculationScenario s = scenarioListModel.getElementAt(index);
+                    s.setSelected(!s.isSelected());
+                    scenarioList.repaint(scenarioList.getCellBounds(index, index));
+                    save();
+                }
+            }
+        });
+
         scenarioList.addListSelectionListener(e -> updateWaypointsArea());
         leftPanel.add(new JScrollPane(scenarioList), BorderLayout.CENTER);
 
@@ -115,9 +143,9 @@ public class CirculationDialog extends JDialog {
         btnAddScen.addActionListener(e -> {
             String name = JOptionPane.showInputDialog(this, "Scenario Name:");
             if (name != null && !name.trim().isEmpty()) {
-                CirculationScenario s = new CirculationScenario(name.trim(), 0xFF0000FF); // Default blue
+                CirculationScenario s = new CirculationScenario(name);
                 scenarios.add(s);
-                scenarioListModel.addElement(s.getName());
+                scenarioListModel.addElement(s);
                 scenarioList.setSelectedIndex(scenarios.size() - 1);
                 save();
             }
@@ -208,16 +236,11 @@ public class CirculationDialog extends JDialog {
 
         // Bottom panel
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnVisualize = new JButton("Visualize Selected");
-        btnVisualize.addActionListener(e -> {
-            int idx = scenarioList.getSelectedIndex();
-            if (idx >= 0) {
-                visualizeScenario(scenarios.get(idx));
-            } else {
-                logMessage("Select a scenario to visualize.");
-            }
+        JButton btnCompute = new JButton("Compute path");
+        btnCompute.addActionListener(e -> {
+            visualizeSelectedScenarios();
         });
-        bottomPanel.add(btnVisualize);
+        bottomPanel.add(btnCompute);
         add(bottomPanel, BorderLayout.SOUTH);
 
         if (!scenarios.isEmpty()) {
@@ -254,15 +277,15 @@ public class CirculationDialog extends JDialog {
         ScenarioManager.saveScenarios(home, scenarios);
     }
 
-    private void visualizeScenario(CirculationScenario scenario) {
+    private void visualizeSelectedScenarios() {
         if (debugArea != null) {
-            debugArea.setText("Starting visualization for: " + scenario.getName() + "\n");
+            debugArea.setText("Computing paths...\n");
         }
         
-        // Clear old polylines for this scenario
+        // Clear old polylines for all scenarios and hotspots
         List<Polyline> toRemove = new ArrayList<>();
         for (Polyline p : home.getPolylines()) {
-            if (p.getId() != null && p.getId().startsWith("circ_")) {
+            if (p.getId() != null && (p.getId().startsWith("circ_") || p.getId().startsWith("hotspot_"))) {
                 toRemove.add(p);
             }
         }
@@ -270,67 +293,94 @@ public class CirculationDialog extends JDialog {
             home.deletePolyline(p);
         }
 
-        List<Point2D.Float> fullPath = new ArrayList<>();
-        Point2D.Float lastPoint = null;
+        List<List<java.awt.geom.Point2D.Float>> allComputedPaths = new ArrayList<>();
 
-        for (Waypoint wp : scenario.getWaypoints()) {
-            Point2D.Float currentPoint = null;
-            if (wp.isFurnitureTarget()) {
-                for (PieceOfFurniture pof : home.getFurniture()) {
-                    if (pof instanceof com.eteks.sweethome3d.model.HomePieceOfFurniture) {
-                        com.eteks.sweethome3d.model.HomePieceOfFurniture f = (com.eteks.sweethome3d.model.HomePieceOfFurniture) pof;
-                        if (f.getId() != null && f.getId().equals(wp.getTargetFurnitureId())) {
-                            currentPoint = new Point2D.Float(f.getX(), f.getY());
-                            break;
-                        }
-                    }
+        for (CirculationScenario scenario : scenarios) {
+            if (!scenario.isSelected()) continue;
+
+            java.awt.geom.Point2D.Float[] cachedArray = scenario.getCachedPath();
+            List<java.awt.geom.Point2D.Float> fullPath = new ArrayList<>();
+
+            if (cachedArray != null) {
+                logMessage("Using cached path for: " + scenario.getName());
+                for (java.awt.geom.Point2D.Float pt : cachedArray) {
+                    fullPath.add(pt);
                 }
             } else {
-                currentPoint = new Point2D.Float(wp.getCustomX(), wp.getCustomY());
-            }
+                logMessage("Computing path for: " + scenario.getName());
+                java.awt.geom.Point2D.Float lastPoint = null;
 
-            if (currentPoint != null) {
-                if (lastPoint != null) {
-                    java.util.function.Consumer<String> logger = msg -> {
-                        debugArea.append(msg + "\n");
-                        debugArea.setCaretPosition(debugArea.getDocument().getLength());
-                    };
-                    List<Point2D.Float> segment = Pathfinder.findPath(home, lastPoint, currentPoint, logger);
-                    if (!segment.isEmpty()) {
-                        for (int i = (!fullPath.isEmpty() ? 1 : 0); i < segment.size(); i++) {
-                            fullPath.add(segment.get(i));
+                for (Waypoint wp : scenario.getWaypoints()) {
+                    java.awt.geom.Point2D.Float currentPoint = null;
+                    if (wp.isFurnitureTarget()) {
+                        for (PieceOfFurniture pof : home.getFurniture()) {
+                            if (pof instanceof com.eteks.sweethome3d.model.HomePieceOfFurniture) {
+                                com.eteks.sweethome3d.model.HomePieceOfFurniture f = (com.eteks.sweethome3d.model.HomePieceOfFurniture) pof;
+                                if (f.getId() != null && f.getId().equals(wp.getTargetFurnitureId())) {
+                                    currentPoint = new java.awt.geom.Point2D.Float(f.getX(), f.getY());
+                                    break;
+                                }
+                            }
                         }
+                    } else {
+                        currentPoint = new java.awt.geom.Point2D.Float(wp.getCustomX(), wp.getCustomY());
                     }
-                } else {
-                    fullPath.add(currentPoint);
+
+                    if (currentPoint != null) {
+                        if (lastPoint != null) {
+                            java.util.function.Consumer<String> logger = msg -> {
+                                debugArea.append(msg + "\n");
+                                debugArea.setCaretPosition(debugArea.getDocument().getLength());
+                            };
+                            List<java.awt.geom.Point2D.Float> segment = Pathfinder.findPath(home, lastPoint, currentPoint, logger);
+                            if (!segment.isEmpty()) {
+                                for (int i = (!fullPath.isEmpty() ? 1 : 0); i < segment.size(); i++) {
+                                    fullPath.add(segment.get(i));
+                                }
+                            }
+                        } else {
+                            fullPath.add(currentPoint);
+                        }
+                        lastPoint = currentPoint;
+                    }
                 }
-                lastPoint = currentPoint;
+                
+                if (fullPath.size() > 1) {
+                    java.awt.geom.Point2D.Float[] arr = new java.awt.geom.Point2D.Float[fullPath.size()];
+                    scenario.setCachedPath(fullPath.toArray(arr));
+                } else {
+                    scenario.setCachedPath(new java.awt.geom.Point2D.Float[0]); // empty cache
+                }
+            }
+
+            boolean isValidPath = fullPath.size() > 1;
+            if (isValidPath) {
+                allComputedPaths.add(fullPath);
+                float[][] points = new float[fullPath.size()][2];
+                for (int i = 0; i < fullPath.size(); i++) {
+                    points[i][0] = fullPath.get(i).x;
+                    points[i][1] = fullPath.get(i).y;
+                }
+
+                Polyline polyline = new Polyline("circ_" + scenario.getName(), points, 5f, 
+                        Polyline.CapStyle.ROUND, Polyline.JoinStyle.ROUND, 
+                        Polyline.DashStyle.DASH, 0f, Polyline.ArrowStyle.NONE, Polyline.ArrowStyle.DELTA, 
+                        false, scenario.getColor());
+                
+                polyline.setVisibleIn3D(true);
+                polyline.setElevation(100f);
+                home.addPolyline(polyline);
+                logMessage("Added path for " + scenario.getName() + " (Length: " + polyline.getLength() + " cm)");
+            } else {
+                logMessage("Not enough valid waypoints for " + scenario.getName());
             }
         }
 
-        boolean isValidPath = fullPath.size() > 1;
-        Polyline polyline = null;
-        if (isValidPath) {
-            float[][] points = new float[fullPath.size()][2];
-            for (int i = 0; i < fullPath.size(); i++) {
-                points[i][0] = fullPath.get(i).x;
-                points[i][1] = fullPath.get(i).y;
-            }
-
-            polyline = new Polyline("circ_" + scenario.getName(), points, 5f, 
-                    Polyline.CapStyle.ROUND, Polyline.JoinStyle.ROUND, 
-                    Polyline.DashStyle.DASH, 0f, Polyline.ArrowStyle.NONE, Polyline.ArrowStyle.DELTA, 
-                    false, scenario.getColor());
-            
-            polyline.setVisibleIn3D(true);
-            polyline.setElevation(100f);
-        }
-
-        if (isValidPath) {
-            home.addPolyline(polyline);
-            logMessage("Path generated successfully! Length: " + polyline.getLength() + " cm");
-        } else {
-            logMessage("Not enough valid waypoints to generate path.");
+        // Generate Hotspots
+        if (!allComputedPaths.isEmpty()) {
+            logMessage("Generating hotspots...");
+            HotspotGenerator.generateHotspots(home, allComputedPaths);
+            logMessage("Hotspots generated.");
         }
     }
 

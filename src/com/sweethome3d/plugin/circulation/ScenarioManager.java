@@ -38,6 +38,9 @@ public class ScenarioManager {
                         }
                     }
                 }
+                if (parts.length >= 4) {
+                    scenario.setSelected(Boolean.parseBoolean(parts[3]));
+                }
                 scenarios.add(scenario);
             }
         }
@@ -57,6 +60,7 @@ public class ScenarioManager {
                     sb.append(",").append(wp.getCustomX()).append(",").append(wp.getCustomY()).append(";");
                 }
             }
+            sb.append("|").append(scenario.isSelected());
             sb.append("::");
         }
         home.setProperty(PROPERTY_NAME, sb.toString());
