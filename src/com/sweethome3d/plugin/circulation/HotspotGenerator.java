@@ -69,20 +69,21 @@ public class HotspotGenerator {
                 
                 int argb = (a << 24) | (r << 16) | (g << 8) | b;
                 
-                // Create a 5x5 square using a short polyline with 5 thickness
+                // Create an enlarged square using a short polyline with increased thickness
+                float tileSize = GRID_SIZE * 2f; // Enlarge to 10cm x 10cm
                 float[][] points = new float[2][2];
                 points[0][0] = cx;
-                points[0][1] = cy - (GRID_SIZE / 2);
+                points[0][1] = cy - (tileSize / 2);
                 points[1][0] = cx;
-                points[1][1] = cy + (GRID_SIZE / 2);
+                points[1][1] = cy + (tileSize / 2);
                 
-                Polyline tile = new Polyline("hotspot_" + entry.getKey(), points, GRID_SIZE, 
+                Polyline tile = new Polyline("hotspot_" + entry.getKey(), points, tileSize, 
                         Polyline.CapStyle.SQUARE, Polyline.JoinStyle.BEVEL, 
                         Polyline.DashStyle.SOLID, 0f, Polyline.ArrowStyle.NONE, Polyline.ArrowStyle.NONE, 
                         false, argb);
                 
                 tile.setVisibleIn3D(true);
-                tile.setElevation(0.5f); // Slightly above floor
+                tile.setElevation(105f); // Higher than paths (which are at 100f)
                 
                 home.addPolyline(tile);
             }
