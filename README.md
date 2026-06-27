@@ -23,7 +23,15 @@ This plugin for [Sweet Home 3D](https://www.sweethome3d.com/) allows interior de
 ## Compiling from Source
 
 1. Clone this repository.
-2. Place `SweetHome3D.jar` inside the `lib/` directory.
+2. Place the `SweetHome3D.jar` file inside the `lib/` directory so the project structure looks like this:
+   ```text
+   sh3d-circulation/
+   ├── build.sh
+   ├── lib/
+   │   └── SweetHome3D.jar    <-- Place it here!
+   ├── src/
+   └── README.md
+   ```
 3. Run the included build script:
    ```bash
    ./build.sh
