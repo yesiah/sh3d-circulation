@@ -131,8 +131,17 @@ public class CirculationDialog extends JDialog {
         btnAddScen.addActionListener(e -> {
             CirculationScenario s = new CirculationScenario("New Scenario");
             scenarios.add(s);
-            scenarioTableModel.fireTableRowsInserted(scenarios.size() - 1, scenarios.size() - 1);
-            scenarioTable.setRowSelectionInterval(scenarios.size() - 1, scenarios.size() - 1);
+            int newRow = scenarios.size() - 1;
+            scenarioTableModel.fireTableRowsInserted(newRow, newRow);
+            scenarioTable.setRowSelectionInterval(newRow, newRow);
+            scenarioTable.editCellAt(newRow, 1);
+            java.awt.Component editor = scenarioTable.getEditorComponent();
+            if (editor != null) {
+                editor.requestFocus();
+                if (editor instanceof javax.swing.JTextField) {
+                    ((javax.swing.JTextField) editor).selectAll();
+                }
+            }
             save();
         });
         JButton btnDelScen = new JButton("Remove");
