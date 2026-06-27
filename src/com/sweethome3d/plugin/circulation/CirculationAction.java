@@ -17,14 +17,19 @@ public class CirculationAction extends PluginAction {
         setEnabled(true);
     }
 
+    private CirculationDialog dialog;
+
     @Override
     public void execute() {
         // Show dialog
         SwingUtilities.invokeLater(() -> {
-            Home home = plugin.getHome();
-            HomeController homeController = plugin.getHomeController();
-            CirculationDialog dialog = new CirculationDialog(home, homeController);
+            if (dialog == null || !dialog.isDisplayable()) {
+                Home home = plugin.getHome();
+                HomeController homeController = plugin.getHomeController();
+                dialog = new CirculationDialog(home, homeController);
+            }
             dialog.setVisible(true);
+            dialog.toFront();
         });
     }
 }

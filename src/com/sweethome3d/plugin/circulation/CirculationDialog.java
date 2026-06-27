@@ -18,6 +18,54 @@ public class CirculationDialog extends JDialog {
     private DefaultListModel<String> scenarioListModel;
     private JTextArea waypointsArea;
     private JTextArea debugArea;
+    private boolean isAddingCustomWaypoint = false;
+
+    private void initCustomWaypointListener(JComponent planComp) {
+        // Scrub any old listeners left over from plugin reloads
+        for (java.awt.event.MouseListener ml : planComp.getMouseListeners()) {
+            if (ml.getClass().getName().contains("CirculationDialog")) {
+                planComp.removeMouseListener(ml);
+            }
+        }
+        
+        // Add one permanent listener
+        planComp.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent me) {
+                if (isAddingCustomWaypoint && javax.swing.SwingUtilities.isLeftMouseButton(me)) {
+                    int idx = scenarioList.getSelectedIndex();
+                    if (idx >= 0) {
+                        try {
+                            com.eteks.sweethome3d.viewcontroller.PlanView planView = homeController.getPlanController().getView();
+                            float x = planView.convertXPixelToModel(me.getX());
+                            float y = planView.convertYPixelToModel(me.getY());
+                            scenarios.get(idx).addWaypoint(new Waypoint(x, y));
+                            updateWaypointsArea();
+                            save();
+                        } catch (Exception ex) {}
+                    }
+                    isAddingCustomWaypoint = false;
+                    // Reset button text by finding it
+                    for (Component c : getRootPane().getContentPane().getComponents()) {
+                        resetButtonText(c);
+                    }
+                }
+            }
+            
+            private void resetButtonText(Component c) {
+                if (c instanceof JButton) {
+                    JButton btn = (JButton) c;
+                    if ("Cancel Adding Point".equals(btn.getText())) {
+                        btn.setText("Add Custom Point (Click Plan)");
+                    }
+                } else if (c instanceof Container) {
+                    for (Component child : ((Container) c).getComponents()) {
+                        resetButtonText(child);
+                    }
+                }
+            }
+        });
+    }
     
     public CirculationDialog(Home home, HomeController homeController) {
         super((Frame) null, "Circulation Scenarios", false);
@@ -34,7 +82,14 @@ public class CirculationDialog extends JDialog {
         setLocationRelativeTo(null);
 
         // Scenarios List Panel
-        JPanel leftPanel = new JPanel(new BorderLayout());
+        try {
+            com.eteks.sweethome3d.viewcontroller.PlanView planView = homeController.getPlanController().getView();
+            if (planView instanceof JComponent) {
+                initCustomWaypointListener((JComponent) planView);
+            }
+        } catch (Exception ex) {}
+
+        JPanel leftPanel = new JPanel(new BorderLayout(5, 5));
         leftPanel.setBorder(BorderFactory.createTitledBorder("Scenarios"));
         
         scenarioListModel = new DefaultListModel<>();
@@ -79,7 +134,7 @@ public class CirculationDialog extends JDialog {
         waypointsArea.setEditable(false);
         rightPanel.add(new JScrollPane(waypointsArea), BorderLayout.CENTER);
 
-        JPanel wpBtns = new JPanel(new GridLayout(2, 1, 5, 5));
+        JPanel wpBtns = new JPanel(new GridLayout(3, 1, 5, 5));
         JButton btnAddWp = new JButton("Add Selected Furniture");
         btnAddWp.addActionListener(e -> {
             int idx = scenarioList.getSelectedIndex();
@@ -98,6 +153,23 @@ public class CirculationDialog extends JDialog {
             }
         });
         
+        JButton btnAddCustomWp = new JButton("Add Custom Point (Click Plan)");
+        btnAddCustomWp.addActionListener(e -> {
+            int idx = scenarioList.getSelectedIndex();
+            if (idx < 0) {
+                JOptionPane.showMessageDialog(this, "Select a scenario first.");
+                return;
+            }
+            
+            if (isAddingCustomWaypoint) {
+                isAddingCustomWaypoint = false;
+                btnAddCustomWp.setText("Add Custom Point (Click Plan)");
+            } else {
+                isAddingCustomWaypoint = true;
+                btnAddCustomWp.setText("Cancel Adding Point");
+            }
+        });
+        
         JButton btnClearWp = new JButton("Clear Waypoints");
         btnClearWp.addActionListener(e -> {
             int idx = scenarioList.getSelectedIndex();
@@ -109,6 +181,7 @@ public class CirculationDialog extends JDialog {
         });
         
         wpBtns.add(btnAddWp);
+        wpBtns.add(btnAddCustomWp);
         wpBtns.add(btnClearWp);
         rightPanel.add(wpBtns, BorderLayout.SOUTH);
 
@@ -246,5 +319,10 @@ public class CirculationDialog extends JDialog {
         } else {
             JOptionPane.showMessageDialog(this, "Not enough valid waypoints to generate path.");
         }
+    }
+
+    @Override
+    public void dispose() {
+        super.dispose();
     }
 }
