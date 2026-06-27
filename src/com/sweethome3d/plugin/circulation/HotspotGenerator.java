@@ -66,8 +66,11 @@ public class HotspotGenerator {
                 float cx = gx * GRID_SIZE;
                 float cy = gy * GRID_SIZE;
                 
-                // Color calculation: lighter red to solid red based on overlap intensity
-                float intensity = (float) (overlap - 1) / Math.max(1, maxOverlap - 1);
+                // The user's clever interpolation: 
+                // Divides the color band into 'maxOverlap' pieces.
+                // If maxOverlap=2 (1 color needed), intensity is 1/2 = 0.5
+                // If maxOverlap=3 (2 colors needed), intensity is 1/3 and 2/3.
+                float intensity = (float) (overlap - 1) / maxOverlap;
                 
                 int r = 255;
                 // Transition from Light Red/Pink (g=200, b=200) to Solid Red (g=0, b=0)
