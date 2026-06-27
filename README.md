@@ -4,7 +4,7 @@ This plugin for [Sweet Home 3D](https://www.sweethome3d.com/) allows interior de
 
 ## Features
 
-- **A* Pathfinding**: Automatically calculates the shortest, most ergonomic paths around walls and furniture.
+- **A\* Pathfinding**: Automatically calculates the shortest, most ergonomic paths around walls and furniture.
 - **Multiple Scenarios**: Create and manage multiple circulation paths (e.g., "Kitchen to Dining", "Entrance to Living Room").
 - **Interactive UI**: Toggle paths on and off via a convenient checkbox table to instantly compare different traffic flows.
 - **Performance Caching**: Instantly toggles complex pathfinding scenarios without lag.
